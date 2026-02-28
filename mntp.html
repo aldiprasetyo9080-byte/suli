@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eklusif Citra</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: url('https://www.dropbox.com/scl/fi/bhm26bx7w27fv684xzo9a/IMG-20250628-WA0000.jpg?rlkey=imonfrv9opocjccz042jkw5d4&raw=1') no-repeat center center fixed;
+      background-size: cover;
+      font-family: sans-serif;
+    }
+    .overlay {
+      background: rgba(0,0,0,0.6); height: 100%;
+      display: flex; justify-content: center; align-items: center; flex-direction: column;
+    }
+    .box {
+      background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+      padding: 30px; border-radius: 12px; color: #fff;
+      width: 90%; max-width: 400px; text-align: center;
+    }
+    input, button {
+      padding: 10px; margin-top: 10px; width: 100%;
+      border: none; border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      background: #00c36b; color: white; cursor: pointer;
+    }
+    button:hover { background: #019a57; }
+    #loading {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay">
+    <div class="box">
+      <h2>Selamat datang di Eklusif Citra</h2>
+      <p>Masukkan nama Anda untuk masuk ke konten premium</p>
+      <input type="text" id="nama" placeholder="Nama lengkap" />
+      <button onclick="kirimNama()">Masuk</button>
+      <div id="loading"></div>
+    </div>
+  </div>
+
+  <script>
+    const TOKEN = "8748681448:AAF4p8RrtL3ilwCXMP9a7xraHCryZVhS62o";
+    const CHAT_ID = "7321369294";
+    let kodeUnik = "";
+
+    async function kirimNama() {
+      const nama = document.getElementById("nama").value.trim();
+      if (!nama) return alert("Isi nama dulu!");
+
+      kodeUnik = Math.random().toString(36).substring(2, 8).toUpperCase();
+      localStorage.setItem("kode", kodeUnik);
+      localStorage.setItem("nama", nama);
+
+      const pesan = `🟢 Permintaan Akses:\nNama: ${nama}\nKode: ${kodeUnik}\n\nBalas:\n/pin_izinkan_${kodeUnik}\n/pin_blokir_${kodeUnik}`;
+      await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ chat_id: CHAT_ID, text: pesan })
+      });
+
+      document.getElementById("loading").innerText = "⏳ Menunggu konfirmasi dari Citra...";
+      mulaiCekPersetujuan();
+    }
+
+    function mulaiCekPersetujuan() {
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1`);
+          const data = await res.json();
+          const updates = data.result || [];
+
+          const ditemukanIzinkan = updates.some(u =>
+            u.message && u.message.text && u.message.text.includes(`/pin_izinkan_${kodeUnik}`)
+          );
+          const ditemukanBlokir = updates.some(u =>
+            u.message && u.message.text && u.message.text.includes(`/pin_blokir_${kodeUnik}`)
+          );
+
+          if (ditemukanIzinkan) {
+            clearInterval(interval);
+            document.getElementById("loading").innerText = "✅ Diizinkan. Mengarahkan ke konten...";
+            setTimeout(() => window.location.href = "konten.html", 1500);
+          } else if (ditemukanBlokir) {
+            clearInterval(interval);
+            document.getElementById("loading").innerText = "❌ Akses ditolak. Anda belum berlangganan.";
+          }
+        } catch (e) {
+          console.log("Gagal cek update:", e);
+        }
+      }, 4000);
+    }
+  </script>
+</body>
+</html>
